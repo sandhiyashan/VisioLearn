@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en" >
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>VisioLearn - Quiz</title>
+  <style>
+    /* Shared styles */
+    body {
+      font-size: 1.3rem;
+      background: black;
+      color: #fff;
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+    }
+    header, nav, main {
+      padding: 1rem 2rem;
+    }
+    header {
+      background-color: #003366;
+      text-align: center;
+    }
+    nav {
+      background-color: #0055aa;
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    nav a {
+      background-color: #0077dd;
+      color: white;
+      padding: 1rem 2rem;
+      font-size: 1.2rem;
+      border-radius: 5px;
+      text-decoration: none;
+      text-align: center;
+    }
+    nav a[aria-current="page"] {
+      background-color: #ffcc00;
+      color: black;
+      font-weight: bold;
+      pointer-events: none;
+    }
+    nav a:focus {
+      outline: 3px solid yellow;
+      outline-offset: 2px;
+    }
+    button.control {
+      background-color: #0077dd;
+      color: white;
+      border: none;
+      padding: 1rem 2rem;
+      margin: 0.5rem 0.5rem 0 0;
+      border-radius: 5px;
+      font-size: 1.2rem;
+      cursor: pointer;
+    }
+    button.control:focus {
+      outline: 3px solid yellow;
+      outline-offset: 2px;
+    }
+    #quizQuestion {
+      font-size: 1.4rem;
+      margin-bottom: 1rem;
+    }
+    #quizOptions {
+      list-style: none;
+      padding: 0;
+      margin-bottom: 1rem;
+    }
+    #quizOptions li {
+      margin-bottom: 0.5rem;
+    }
+    #quizOptions input[type="radio"] {
+      margin-right: 0.5rem;
+    }
+    #quizResult {
+      margin-top: 1rem;
+      font-weight: bold;
+    }
+    #ariaLiveRegion {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      margin: -1px;
+      border: 0;
+      padding: 0;
+      overflow: hidden;
+      clip: rect(0 0 0 0);
+      clip-path: inset(50%);
+      white-space: nowrap;
+    }
+    /* ✅ Footer */
+    footer {
+        background-color: #003366;
+        text-align: center;
+        padding: 15px;
+        font-size: 0.9rem;
+        color: white;
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1 tabindex="0">VisioLearn📚📚</h1>
+</header>
+
+<nav role="navigation" aria-label="Main Navigation">
+  <a href="reader.html" id="nav-reader">📖 Book Reader</a>
+  <a href="notes.html" id="nav-notes">🎙️ Voice Notes</a>
+  <a href="quiz.html" aria-current="page" id="nav-quiz">🧑‍💻 Quiz</a>
+  <a href="converter.html" id="nav-converter">⠿ Braille Export</a>
+</nav>
+
+<div id="ariaLiveRegion" role="alert" aria-live="assertive" aria-atomic="true"></div>
+
+<main aria-label="Quiz Section" tabindex="-1">
+  <h2 tabindex="0">Quiz</h2>
+
+  <div id="quizContainer">
+    <p id="quizQuestion"></p>
+    <ul id="quizOptions"></ul>
+    <button class="control" id="submitQuizBtn" aria-label="Submit quiz answer">Submit Answer</button>
+    <button class="control" id="nextQuizBtn" aria-label="Next quiz question" disabled>Next Question</button>
+    <p id="quizResult" aria-live="polite"></p>
+  </div>
+</main>
+
+<script>
+  const liveRegion = document.getElementById("ariaLiveRegion");
+  const questionEl = document.getElementById('quizQuestion');
+  const optionsEl = document.getElementById('quizOptions');
+  const resultEl = document.getElementById('quizResult');
+  const submitBtn = document.getElementById('submitQuizBtn');
+  const nextBtn = document.getElementById('nextQuizBtn');
+
+  let quizQuestions = [];
+  let currentQuestionIndex = 0;
+  let selectedOptionIndex = null;
+
+  function decodeHTML(html) {
+    const txt = document.createElement("textarea");
+    txt.innerHTML = html;
+    return txt.value;
+  }
+
+  async function fetchQuizData() {
+    try {
+      const res = await fetch("https://opentdb.com/api.php?amount=20&category=9&difficulty=easy&type=multiple");
+      const data = await res.json();
+      quizQuestions = data.results.map((q) => {
+        const options = [...q.incorrect_answers];
+        const correctIndex = Math.floor(Math.random() * (options.length + 1));
+        options.splice(correctIndex, 0, q.correct_answer);
+
+        return {
+          question: decodeHTML(q.question),
+          options: options.map(decodeHTML),
+          answer: correctIndex
+        };
+      });
+
+      loadQuestion();
+    } catch (err) {
+      questionEl.textContent = "Failed to load quiz questions.";
+      console.error(err);
+    }
+  }
+
+  function loadQuestion() {
+    const questionObj = quizQuestions[currentQuestionIndex];
+    selectedOptionIndex = null;
+
+    questionEl.textContent = questionObj.question;
+    optionsEl.innerHTML = '';
+    resultEl.textContent = '';
+    submitBtn.disabled = false;
+    nextBtn.disabled = true;
+
+    questionObj.options.forEach((opt, i) => {
+      const li = document.createElement('li');
+      const radio = document.createElement('input');
+      radio.type = 'radio';
+      radio.name = 'quizOption';
+      radio.id = `option${i}`;
+      radio.value = i;
+
+      const label = document.createElement('label');
+      label.setAttribute('for', `option${i}`);
+      label.textContent = opt;
+
+      li.appendChild(radio);
+      li.appendChild(label);
+      optionsEl.appendChild(li);
+    });
+
+    const readMessage = `Question ${currentQuestionIndex + 1}: ${questionObj.question}. ` +
+      `Options are: 1. ${questionObj.options[0]}, 2. ${questionObj.options[1]}, 3. ${questionObj.options[2]}, 4. ${questionObj.options[3]}. ` +
+      `Press 1 to 4 to select your answer. Press S to submit. Press n to Next Question`;
+
+    speakGuidance(readMessage);
+    updateLiveRegion(readMessage);
+  }
+
+  function updateLiveRegion(message) {
+    liveRegion.textContent = '';
+    setTimeout(() => {
+      liveRegion.textContent = message;
+    }, 100);
+  }
+
+  function speakGuidance(message) {
+    if (!message) return;
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(message);
+    utterance.lang = 'en-US';
+    window.speechSynthesis.speak(utterance);
+    updateLiveRegion(message);
+  }
+
+  function submitAnswer() {
+    if (selectedOptionIndex === null) {
+      speakGuidance("Please select an answer before submitting.");
+      return;
+    }
+
+    const radios = document.getElementsByName('quizOption');
+    radios[selectedOptionIndex].checked = true;
+
+    const correctAnswer = quizQuestions[currentQuestionIndex].answer;
+
+    if (selectedOptionIndex === correctAnswer) {
+      resultEl.textContent = "Correct!";
+      speakGuidance("Correct answer.");
+    } else {
+      const correctText = quizQuestions[currentQuestionIndex].options[correctAnswer];
+      resultEl.textContent = `Incorrect. Correct answer: ${correctText}`;
+      speakGuidance(`Incorrect answer. The correct answer is: ${correctText}`);
+    }
+
+    submitBtn.disabled = true;
+    nextBtn.disabled = false;
+  }
+
+  function nextQuestion() {
+    currentQuestionIndex++;
+    if (currentQuestionIndex >= quizQuestions.length) {
+      speakGuidance("You have completed the quiz. Great job!");
+      alert("Quiz completed!");
+      currentQuestionIndex = 0;
+      fetchQuizData();
+      return;
+    }
+    loadQuestion();
+  }
+
+  window.addEventListener('load', () => {
+    document.querySelector('main').focus();
+    fetchQuizData();
+
+    // Navigation voice guidance
+    document.querySelectorAll('nav a').forEach(link => {
+      link.addEventListener('click', function (event) {
+        event.preventDefault();
+        const sectionId = this.id.replace('nav-', '');
+        let message = '';
+        switch (sectionId) {
+          case 'reader':
+            message = "You are in Book Reader section.Press R to start recording, S to stop recording. You can also upload audio files.";
+            break;
+          case 'notes':
+            message = "You are in Voice Notes section. Press R to start recording, S to stop recording. You can also upload audio files.";
+            break;
+          case 'quiz':
+            message = "You are in Quiz section.Answer the question by selecting one of the options.";
+            break;
+          case 'converter':
+            message = "You are in Braille Export section. Upload a text file as PDF and get a .brf file.";
+            break;
+        }
+        speakGuidance(message);
+        setTimeout(() => {
+          window.location.href = this.getAttribute('href');
+        }, 2000);
+      });
+    });
+  });
+
+  // Keyboard shortcuts
+  window.addEventListener('keydown', function(e) {
+    // ===== Alt+1..4 navigation =====
+    if (e.altKey) {
+        switch (e.key) {
+            case '1':
+                e.preventDefault();
+                document.getElementById('nav-reader').click();
+                break;
+            case '2':
+                e.preventDefault();
+                document.getElementById('nav-notes').click();
+                break;
+            case '3':
+                e.preventDefault();
+                document.getElementById('nav-quiz').click();
+                break;
+            case '4':
+                e.preventDefault();
+                document.getElementById('nav-converter').click();
+                break;
+        }
+        return; // Don't run quiz/speech shortcuts after Alt combos
+    }
+
+    // Ignore Ctrl/Meta shortcuts
+    if (e.ctrlKey || e.metaKey) return;
+
+    switch (e.key.toLowerCase()) {
+      case '1':
+      case '2':
+      case '3':
+      case '4':
+        const index = parseInt(e.key) - 1;
+        const option = document.getElementById(`option${index}`);
+        if (option) {
+          option.checked = true;
+          selectedOptionIndex = index;
+          const text = quizQuestions[currentQuestionIndex].options[index];
+          speakGuidance(`You selected option ${e.key}: ${text}`);
+        }
+        break;
+
+      case 's':
+        e.preventDefault();
+        submitAnswer();
+        break;
+
+      case 'n':
+        e.preventDefault();
+        if (!nextBtn.disabled) {
+          nextQuestion();
+        }
+        break;
+    }
+});
+  // Button events (for mouse or touch users)
+  submitBtn.addEventListener('click', submitAnswer);
+  nextBtn.addEventListener('click', nextQuestion);
+</script>
+
+<footer>
+    © 2025 VisioLearn. All Rights Reserved.
+</footer>
+
+</body>
+</html>

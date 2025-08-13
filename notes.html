@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>VisioLearn - Voice Notes</title>
+  <style>
+body {
+  font-size: 1.3rem;
+  background: black;
+  color: #fff;
+  font-family: Arial, sans-serif;
+  margin: 0;
+  padding: 0;
+}
+
+header, nav, main {
+  padding: 1rem 2rem;
+}
+
+header {
+  background-color: #003366;
+  text-align: center;
+}
+
+nav {
+  background-color: #0055aa;
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+nav a {
+  background-color: #0077dd;
+  color: white;
+  padding: 1rem 2rem;
+  font-size: 1.2rem;
+  border-radius: 5px;
+  text-decoration: none;
+  text-align: center;
+}
+
+nav a[aria-current="page"] {
+  background-color: #ffcc00;
+  color: black;
+  font-weight: bold;
+  pointer-events: none;
+}
+
+nav a:focus {
+  outline: 3px solid yellow;
+  outline-offset: 2px;
+}
+
+main {
+  padding: 2rem;
+  text-align: left;
+}
+
+/* ✅ Voice Notes Section */
+.voice-section {
+  background-color: #111;
+  padding: 2rem;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  max-width: 900px;
+  margin: auto;
+}
+
+.recording-controls {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+}
+
+.upload-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.audio-player-container audio {
+  display: block;
+  width: 100%;
+  margin-top: 10px;
+}
+
+/* ✅ Buttons */
+button.control {
+  background-color: #0077dd;
+  color: white;
+  border: none;
+  padding: 1rem 2rem;
+  border-radius: 5px;
+  font-size: 1.1rem;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+button.control:hover:enabled {
+  background-color: #0056b3;
+}
+
+button.control:disabled {
+  background-color: #aaa;
+  cursor: not-allowed;
+}
+
+button.control:focus {
+  outline: 3px solid yellow;
+  outline-offset: 2px;
+}
+
+/* ✅ File Input */
+#audioUpload {
+  background-color: white;
+  color: black;
+  font-size: 1rem;
+  padding: 8px;
+  border-radius: 6px;
+  border: none;
+  width: 350px;
+  display: block;
+}
+
+#audioUpload::-webkit-file-upload-button {
+  visibility: hidden;
+}
+
+#audioUpload::before {
+  content: 'Choose File';
+  display: inline-block;
+  background: #0056b3;
+  color: white;
+  padding: 10px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+/* ✅ Accessibility */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  border: 0;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* ✅ Footer */
+footer {
+  background-color: #003366;
+  text-align: center;
+  padding: 15px;
+  font-size: 0.9rem;
+  color: white;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+}
+
+</style>
+
+</head>
+<body>
+
+<header>
+  <h1 tabindex="0">VisioLearn📚📚</h1>
+</header>
+
+<nav role="navigation" aria-label="Main Navigation">
+  <a href="reader.html" id="nav-reader">📖 Book Reader</a>
+  <a href="notes.html" aria-current="page" id="nav-notes">🎙️ Voice Notes</a>
+  <a href="quiz.html" id="nav-quiz">🧑‍💻 Quiz</a>
+  <a href="converter.html" id="nav-converter">⠿ Braille Export</a>
+</nav>
+
+<div id="ariaLiveRegion" role="alert" aria-live="assertive" aria-atomic="true"></div>
+
+<main aria-label="Voice Notes Section" tabindex="-1">
+  <h2 tabindex="0">Voice Notes</h2>
+
+  <section class="voice-section">
+    <div class="recording-controls">
+        <button id="startNoteBtn" class="control" onclick="startAudioRecording()" aria-live="polite" aria-label="Start recording voice note">Start Recording (R)</button>
+        <button id="stopNoteBtn" class="control" onclick="stopAudioRecording()" disabled aria-live="polite" aria-label="Stop recording voice note">Stop Recording (S)</button>
+        <button id="playNoteBtn" class="control" onclick="playAudio()" disabled aria-live="polite" aria-label="Play recorded voice note">Play Audio (P)</button>
+    </div>
+
+    <div class="upload-section">
+        <label for="audioUpload" class="sr-only">Upload existing audio note</label>
+        <input type="file" id="audioUpload" accept="audio/*" aria-describedby="descAudioUpload" onchange="handleAudioUpload(event)" />
+        <span id="descAudioUpload" class="sr-only">Upload audio file to play here.</span>
+    </div>
+
+    <div class="audio-player-container">
+        <audio id="audioPlayback" controls aria-label="Playback recorded or uploaded audio note" style="display:none;"></audio>
+    </div>
+  </section>
+
+</main>
+
+<script>
+  const liveRegion = document.getElementById("ariaLiveRegion");
+  let mediaRecorder = null;
+  let audioChunks = [];
+  let audioURL = null;
+
+  const startNoteBtn = document.getElementById('startNoteBtn');
+  const stopNoteBtn = document.getElementById('stopNoteBtn');
+  const playNoteBtn = document.getElementById('playNoteBtn');
+  const audioPlayback = document.getElementById('audioPlayback');
+
+  function updateLiveRegion(message) {
+    liveRegion.textContent = '';
+    setTimeout(() => { liveRegion.textContent = message; }, 100);
+  }
+
+  function speakGuidance(message) {
+    if (!message) return;
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(message);
+    utterance.lang = 'en-US';
+    window.speechSynthesis.speak(utterance);
+    updateLiveRegion(message);
+  }
+
+  async function startAudioRecording() {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaRecorder = new MediaRecorder(stream);
+      audioChunks = [];
+
+      mediaRecorder.addEventListener('dataavailable', event => {
+        audioChunks.push(event.data);
+      });
+
+      mediaRecorder.addEventListener('stop', () => {
+        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+        if (audioURL) URL.revokeObjectURL(audioURL);
+        audioURL = URL.createObjectURL(audioBlob);
+        audioPlayback.src = audioURL;
+        audioPlayback.style.display = 'block';
+        playNoteBtn.disabled = false;
+        speakGuidance("Recording stopped. Audio is ready to play. Press P to play the audio.");
+      });
+
+      mediaRecorder.start();
+      startNoteBtn.disabled = true;
+      stopNoteBtn.disabled = false;
+      speakGuidance("Recording started. Speak now.");
+    } catch (error) {
+      speakGuidance("Microphone access denied or error occurred.");
+    }
+  }
+
+  function stopAudioRecording() {
+    if (mediaRecorder && mediaRecorder.state === 'recording') {
+      mediaRecorder.stop();
+      startNoteBtn.disabled = false;
+      stopNoteBtn.disabled = true;
+    }
+  }
+
+  function handleAudioUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    if (!file.type.startsWith('audio/')) {
+      alert("Please upload a valid audio file.");
+      return;
+    }
+    if (audioURL) URL.revokeObjectURL(audioURL);
+    audioURL = URL.createObjectURL(file);
+    audioPlayback.src = audioURL;
+    audioPlayback.style.display = 'block';
+    playNoteBtn.disabled = false;
+    speakGuidance("Audio file uploaded and ready to play. Press P to play the audio.");
+  }
+
+  function playAudio() {
+    if (audioPlayback.src && audioPlayback.src.trim() !== '') {
+      audioPlayback.play();
+      speakGuidance("Playing audio.");
+    } else {
+      speakGuidance("No audio to play.");
+    }
+  }
+
+  // Navigation voice guidance
+  window.addEventListener('load', () => {
+    document.querySelector('main').focus();
+    document.querySelectorAll('nav a').forEach(link => {
+      link.addEventListener('click', function (event) {
+        event.preventDefault();
+        const sectionId = this.id.replace('nav-', '');
+        let message = '';
+        switch (sectionId) {
+          case 'reader':
+            message = "You are in Book Reader section. Upload or paste text and press R to read aloud, P to pause or resume, S to stop.";
+            break;
+          case 'notes':
+            message = "You are in Voice Notes section. Press R to start recording, S to stop recording. You can also upload audio files.";
+            break;
+          case 'quiz':
+            message = "You are in Quiz section. Answer the question by selecting one of the options.";
+            break;
+          case 'converter':
+            message = "You are in Braille Export section. Upload a text file as PDF and get a .brf file.";
+            break;
+          default:
+            message = "Unknown section.";
+        }
+        speakGuidance(message);
+        setTimeout(() => {
+          window.location.href = this.getAttribute('href');
+        }, 2000);
+      });
+    });
+  });
+
+  // Keyboard shortcuts
+  window.addEventListener('keydown', e => {
+    if (e.altKey) {
+      switch (e.key) {
+        case '1':
+          e.preventDefault();
+          document.getElementById('nav-reader').click();
+          break;
+        case '2':
+          e.preventDefault();
+          document.getElementById('nav-notes').click();
+          break;
+        case '3':
+          e.preventDefault();
+          document.getElementById('nav-quiz').click();
+          break;
+        case '4':
+          e.preventDefault();
+          document.getElementById('nav-converter').click();
+          break;
+      }
+      return; // Stop further checks if Alt shortcut is used
+    }
+    if (e.ctrlKey || e.metaKey) return;
+    switch (e.key.toLowerCase()) {
+      case 'r':
+        e.preventDefault();
+        startAudioRecording();
+        break;
+      case 's':
+        e.preventDefault();
+        stopAudioRecording();
+        break;
+      case 'p':
+        e.preventDefault();
+        playAudio();
+        break;
+    }
+  });
+</script>
+
+  <footer>
+    © 2025 VisioLearn. All Rights Reserved.
+  </footer>
+
+</body>
+</html>

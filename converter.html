@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en" >
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>VisioLearn - Braille Export</title>
+  <style>
+    /* Shared styles */
+    body {
+      font-size: 1.3rem;
+      background: black;
+      color: #fff;
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+    }
+    header, nav, main {
+      padding: 1rem 2rem;
+    }
+    header {
+      background-color: #003366;
+      text-align: center;
+    }
+    nav {
+      background-color: #0055aa;
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    nav a {
+      background-color: #0077dd;
+      color: white;
+      padding: 1rem 2rem;
+      font-size: 1.2rem;
+      border-radius: 5px;
+      text-decoration: none;
+      text-align: center;
+    }
+    nav a[aria-current="page"] {
+      background-color: #ffcc00;
+      color: black;
+      font-weight: bold;
+      pointer-events: none;
+    }
+    nav a:focus {
+      outline: 3px solid yellow;
+      outline-offset: 2px;
+    }
+    textarea, input {
+      width: 100%;
+      font-size: 1.2rem;
+      padding: 0.5rem;
+      border-radius: 5px;
+      border: 2px solid #fff;
+      background: black;
+      color: white;
+      margin-bottom: 1rem;
+    }
+    button.control {
+      background-color: #0077dd;
+      color: white;
+      border: none;
+      padding: 1rem 2rem;
+      margin: 0.5rem 0.5rem 0 0;
+      border-radius: 5px;
+      font-size: 1.2rem;
+      cursor: pointer;
+    }
+    button.control:focus {
+      outline: 3px solid yellow;
+      outline-offset: 2px;
+    }
+    #brailleOutput {
+      white-space: pre-wrap;
+      font-family: monospace;
+      margin-top: 1rem;
+      background-color: #111;
+      padding: 1rem;
+      border-radius: 5px;
+      min-height: 150px;
+    }
+   footer {
+  background-color: #003366;
+  text-align: center;
+  padding: 15px;
+  font-size: 0.9rem;
+  color: white;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+}
+
+  </style>
+</head>
+<body>
+
+<header>
+  <h1 tabindex="0">VisioLearn📚📚</h1>
+</header>
+
+<nav role="navigation" aria-label="Main Navigation">
+  <a href="reader.html" id="nav-reader">📖 Book Reader</a>
+  <a href="notes.html" id="nav-notes">🎙️ Voice Notes</a>
+  <a href="quiz.html" id="nav-quiz">🧑‍💻 Quiz</a>
+  <a href="converter.html" aria-current="page" id="nav-converter">⠿ Braille Export</a>
+</nav>
+
+<main aria-label="Braille Export Section" tabindex="-1">
+  <h2 tabindex="0">Braille Export</h2>
+
+  <input type="file" id="pdfUpload" accept=".pdf" aria-label="Upload PDF to convert to Braille" />
+  <button class="control" id="convertPdfBtn">Convert PDF to BRF</button>
+  <pre id="output" aria-live="polite" tabindex="0" style="display:none;"></pre>
+
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+
+<script src="./liblouis-build/build-no-tables-utf32.js"></script>
+<script src="./liblouis/easy-api.js"></script>
+
+<script src="./converter.js"></script>
+
+<script>
+  function speakGuidance(message) {
+    if (!message) return;
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(message);
+    utterance.lang = 'en-US';
+    window.speechSynthesis.speak(utterance);
+  }
+
+  window.addEventListener('load', () => {
+    document.querySelectorAll('nav a').forEach(link => {
+      link.addEventListener('click', function () {
+        const sectionId = this.id.replace('nav-', '');
+        let message = '';
+
+        switch (sectionId) {
+          case 'reader':
+            message = "You are in Book Reader section. Upload or paste text and press R to read aloud, P to pause or resume, S to stop.";
+            break;
+          case 'notes':
+            message = "You are in Voice Notes section. Press R to start recording, S to stop recording. You can also upload audio files.";
+            break;
+          case 'quiz':
+            message = "You are in Quiz section. Answer the question by selecting one of the options.";
+            break;
+          case 'converter':
+            message = "You are in Braille Export section. Upload a text file as PDF and get a .brf file.";
+            break;
+          default:
+            message = "Unknown section.";
+        }
+
+        speakGuidance(message);
+        // Navigation will happen naturally after this since we don't call preventDefault()
+      });
+    });
+  });
+
+  // Keyboard shortcuts for quick navigation
+    document.addEventListener('keydown', function(e) {
+        if (e.altKey) {
+            switch (e.key) {
+                case '1':
+                    document.getElementById('nav-reader').click();
+                    break;
+                case '2':
+                    document.getElementById('nav-notes').click();
+                    break;
+                case '3':
+                    document.getElementById('nav-quiz').click();
+                    break;
+                case '4':
+                    document.getElementById('nav-converter').click();
+                    break;
+            }
+        }
+    });
+</script>
+
+<footer>
+    © 2025 VisioLearn. All Rights Reserved.
+</footer>
+
+</body>
+</html>

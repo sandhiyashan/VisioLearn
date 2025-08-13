@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en" >
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>VisioLearn - Book Reader</title>
+  <style>
+    /* Shared styles */
+    html, body {
+      height: 100%;
+      margin: 0;
+    }
+    body {
+      font-size: 1.3rem;
+      background: black;
+      color: #fff;
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    header, nav, main {
+      padding: 1rem 2rem;
+    }
+    header {
+      background-color: #003366;
+      text-align: center;
+    }
+    nav {
+      background-color: #0055aa;
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    nav a {
+      background-color: #0077dd;
+      color: white;
+      padding: 1rem 2rem;
+      font-size: 1.2rem;
+      border-radius: 5px;
+      text-decoration: none;
+      text-align: center;
+    }
+    nav a[aria-current="page"] {
+      background-color: #ffcc00;
+      color: black;
+      font-weight: bold;
+      pointer-events: none;
+    }
+    nav a:focus {
+      outline: 3px solid yellow;
+      outline-offset: 2px;
+    }
+    textarea, input[type="file"] {
+      width: 100%;
+      font-size: 1.2rem;
+      padding: 0.5rem;
+      border-radius: 5px;
+      border: 2px solid #fff;
+      background: black;
+      color: white;
+      margin-bottom: 1rem;
+    }
+    textarea{
+      height: 200px;        /* Reduce textarea height */
+      max-height: 200px;    /* Prevent it from growing too large */
+      resize: vertical;
+    }
+    button.control {
+      background-color: #0077dd;
+      color: white;
+      border: none;
+      padding: 1rem 2rem;
+      margin: 0.5rem 0.5rem 0 0;
+      border-radius: 5px;
+      font-size: 1.2rem;
+      cursor: pointer;
+    }
+    button.control:focus {
+      outline: 3px solid yellow;
+      outline-offset: 2px;
+    }
+    #ariaLiveRegion {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      margin: -1px;
+      border: 0;
+      padding: 0;
+      overflow: hidden;
+      clip: rect(0 0 0 0);
+      clip-path: inset(50%);
+      white-space: nowrap;
+    }
+    main {
+      flex: 1; /* This makes main expand to fill space */
+    }
+    /* ✅ Footer */
+    footer {
+        background-color: #003366;
+        text-align: center;
+        padding: 15px;
+        font-size: 0.9rem;
+        color: white;
+        position: static;
+        width: 100%;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1 tabindex="0">VisioLearn📚📚</h1>
+</header>
+
+<nav role="navigation" aria-label="Main Navigation">
+  <a href="reader.html" aria-current="page" id="nav-reader">📖 Book Reader</a>
+  <a href="notes.html" id="nav-notes">🎙️ Voice Notes</a>
+  <a href="quiz.html" id="nav-quiz">🧑‍💻 Quiz</a>
+  <a href="converter.html" id="nav-converter">⠿ Braille Export</a>
+</nav>
+
+<div id="ariaLiveRegion" role="alert" aria-live="assertive" aria-atomic="true"></div>
+
+<main aria-label="Book Reader Section" tabindex="-1">
+  <h2 tabindex="0">Book Reader</h2>
+
+  <input type="file" id="fileUploadReader" accept=".pdf,.docx" aria-describedby="descUploadReader" />
+  
+  <textarea id="bookText" rows="10" placeholder="Paste or upload book text here..." aria-live="polite" aria-label="Book text area"></textarea>
+
+  <div>
+    <button class="control" id="readAloudBtn" aria-label="Read book text aloud">Read Aloud (R)</button>
+    <button class="control" id="pauseResumeBtn" aria-label="Pause or resume speech">Pause/Resume (P)</button>
+    <button class="control" id="stopBtn" aria-label="Stop speech">Stop (S)</button>
+  </div>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.14.305/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.4.2/mammoth.browser.min.js"></script>
+
+<script>
+  const liveRegion = document.getElementById("ariaLiveRegion");
+  let speechSynthesisUtterance1 = null;
+  let isPaused = false;
+
+  function updateLiveRegion(message) {
+    liveRegion.textContent = '';
+    setTimeout(() => {
+      liveRegion.textContent = message;
+    }, 100);
+  }
+
+  // Handle file upload for book reader (PDF or DOCX)
+  async function handleFileUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const readerTextArea = document.getElementById('bookText');
+    readerTextArea.value = '';
+
+    if (file.type === 'application/pdf') {
+      try {
+        const arrayBuffer = await file.arrayBuffer();
+        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        let fullText = '';
+        for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+          const page = await pdf.getPage(pageNum);
+          const textContent = await page.getTextContent();
+          const pageText = textContent.items.map(item => item.str).join(' ');
+          fullText += pageText + '\n\n';
+        }
+        readerTextArea.value = fullText.trim();
+        updateLiveRegion("File upload is completed. PDF text loaded.");
+      } catch (error) {
+        alert("Error reading PDF file: " + error);
+      }
+    } else if (file.name.endsWith('.docx')) {
+      try {
+        const arrayBuffer = await file.arrayBuffer();
+        const result = await mammoth.extractRawText({ arrayBuffer });
+        readerTextArea.value = result.value.trim();
+        updateLiveRegion("File upload is completed. DOCX text loaded.");
+      } catch (error) {
+        alert("Error reading DOCX file: " + error);
+      }
+    } else {
+      alert("Unsupported file type. Please upload PDF or DOCX.");
+    }
+  }
+
+  function speakText() {
+    const text = document.getElementById('bookText').value.trim();
+    if (!text) {
+      alert("Please enter or upload text first.");
+      return;
+    }
+    window.speechSynthesis.cancel();
+    speechSynthesisUtterance1 = new SpeechSynthesisUtterance(text);
+    speechSynthesisUtterance1.lang = 'en-US';
+    window.speechSynthesis.speak(speechSynthesisUtterance1);
+    isPaused = false;
+    updateLiveRegion("Started speaking text.");
+  }
+
+  function pauseSpeech() {
+    if (window.speechSynthesis.speaking) {
+      if (isPaused) {
+        window.speechSynthesis.resume();
+        isPaused = false;
+        updateLiveRegion("Speech resumed");
+      } else {
+        window.speechSynthesis.pause();
+        isPaused = true;
+        updateLiveRegion("Speech paused");
+      }
+    }
+  }
+
+  function stopSpeech() {
+    if (window.speechSynthesis.speaking || isPaused) {
+      window.speechSynthesis.cancel();
+      isPaused = false;
+      updateLiveRegion("Speech stopped");
+    }
+  }
+
+  function speakGuidance(message) {
+    if (!message) return;
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(message);
+    utterance.lang = 'en-US';
+    window.speechSynthesis.speak(utterance);
+    updateLiveRegion(message);
+  }
+
+  // Event listeners
+  document.getElementById('fileUploadReader').addEventListener('change', handleFileUpload);
+  document.getElementById('readAloudBtn').addEventListener('click', speakText);
+  document.getElementById('pauseResumeBtn').addEventListener('click', pauseSpeech);
+  document.getElementById('stopBtn').addEventListener('click', stopSpeech);
+
+  // Keyboard shortcuts
+  window.addEventListener('keydown', function(e) {
+    // Alt+1..4 navigation
+    if (e.altKey) {
+        switch (e.key) {
+            case '1':
+                e.preventDefault();
+                document.getElementById('nav-reader').click();
+                break;
+            case '2':
+                e.preventDefault();
+                document.getElementById('nav-notes').click();
+                break;
+            case '3':
+                e.preventDefault();
+                document.getElementById('nav-quiz').click();
+                break;
+            case '4':
+                e.preventDefault();
+                document.getElementById('nav-converter').click();
+                break;
+        }
+        return; // Stop further checks if Alt shortcut is used
+    }
+
+    // R, P, S for speech control (ignore Ctrl/Meta to avoid conflicts)
+    if (e.ctrlKey || e.metaKey) return;
+
+    switch (e.key.toLowerCase()) {
+        case 'r':
+            e.preventDefault();
+            speakText();
+            break;
+        case 'p':
+            e.preventDefault();
+            pauseSpeech();
+            break;
+        case 's':
+            e.preventDefault();
+            stopSpeech();
+            break;
+    }
+});
+
+
+  // Navigation guidance
+  window.addEventListener('load', () => {
+  document.querySelector('main').focus();
+
+  document.querySelectorAll('nav a').forEach(link => {
+    link.addEventListener('click', function (event) {
+      event.preventDefault(); // stop immediate navigation
+      const sectionId = this.id.replace('nav-', '');
+      let message = '';
+
+      switch (sectionId) {
+        case 'reader':
+          message = "You are in Book Reader section. Upload or paste text and press R to read aloud, P to pause or resume, S to stop.";
+          break;
+        case 'notes':
+          message = "You are in Voice Notes section. Press R to start recording, S to stop recording. You can also upload audio files.";
+          break;
+        case 'quiz':
+          message = "You are in Quiz section. Answer the question by selecting one of the options.";
+          break;
+        case 'converter':
+          message = "You are in Braille Export section. Upload a text file as PDF and get a .brf file.";
+          break;
+        default:
+          message = "Unknown section.";
+      }
+
+      speakGuidance(message);
+
+      // Navigate after a short delay so the user hears the guidance first
+      setTimeout(() => {
+        window.location.href = this.getAttribute('href');
+      }, 2000); // 2 seconds delay — adjust as needed
+    });
+  });
+});
+</script>
+
+<footer>
+    © 2025 VisioLearn. All Rights Reserved.
+</footer>
+
+</body>
+</html>

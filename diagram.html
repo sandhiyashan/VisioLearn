@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en" >
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>VisioLearn - Diagram Helper</title>
+  <style>
+    /* Shared styles */
+    body {
+      font-size: 1.3rem;
+      background: black;
+      color: #fff;
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+    }
+    header, nav, main {
+      padding: 1rem 2rem;
+    }
+    header {
+      background-color: #003366;
+      text-align: center;
+    }
+    nav {
+      background-color: #0055aa;
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    nav a {
+      background-color: #0077dd;
+      color: white;
+      padding: 1rem 2rem;
+      font-size: 1.2rem;
+      border-radius: 5px;
+      text-decoration: none;
+      text-align: center;
+    }
+    nav a[aria-current="page"] {
+      background-color: #ffcc00;
+      color: black;
+      font-weight: bold;
+      pointer-events: none;
+    }
+    nav a:focus {
+      outline: 3px solid yellow;
+      outline-offset: 2px;
+    }
+    #diagramCanvas {
+      border: 2px solid #0077dd;
+      background-color: black;
+      display: block;
+      margin: 1rem auto;
+      width: 100%;
+      max-width: 800px;
+      height: 400px;
+      touch-action: none;
+    }
+    button.control {
+      background-color: #0077dd;
+      color: white;
+      border: none;
+      padding: 1rem 2rem;
+      margin: 0.5rem 0.5rem 0 0;
+      border-radius: 5px;
+      font-size: 1.2rem;
+      cursor: pointer;
+    }
+    button.control:focus {
+      outline: 3px solid yellow;
+      outline-offset: 2px;
+    }
+    #ariaLiveRegion {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      margin: -1px;
+      border: 0;
+      padding: 0;
+      overflow: hidden;
+      clip: rect(0 0 0 0);
+      clip-path: inset(50%);
+      white-space: nowrap;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1 tabindex="0">VisioLearn📚📚</h1>
+</header>
+
+<nav role="navigation" aria-label="Main Navigation">
+  <a href="reader.html" id="nav-reader">📖 Book Reader</a>
+  <a href="notes.html" id="nav-notes">🎙️ Voice Notes</a>
+  <a href="quiz.html" id="nav-quiz">🧑‍💻 Quiz</a>
+  <a href="diagram.html" aria-current="page" id="nav-diagram">🧩 Diagram Helper</a>
+  <a href="converter.html" id="nav-converter">⠿ Braille Export</a>
+</nav>
+
+<div id="ariaLiveRegion" role="alert" aria-live="assertive" aria-atomic="true"></div>
+
+<main aria-label="Diagram Helper Section" tabindex="-1">
+  <h2 tabindex="0">Diagram Helper</h2>
+
+  <canvas id="diagramCanvas" aria-label="Drawing canvas"></canvas>
+
+  <div>
+    <button class="control" id="clearCanvasBtn" aria-label="Clear drawing canvas">Clear Canvas (C)</button>
+  </div>
+</main>
+
+<script>
+  const liveRegion = document.getElementById("ariaLiveRegion");
+  const canvas = document.getElementById('diagramCanvas');
+  const ctx = canvas.getContext('2d');
+
+  function resizeCanvas() {
+    canvas.width = Math.min(window.innerWidth - 40, 800);
+    canvas.height = 400;
+  }
+  resizeCanvas();
+  window.addEventListener('resize', resizeCanvas);
+
+  let drawing = false;
+  let lastX = 0;
+  let lastY = 0;
+
+  function startDrawing(e) {
+    drawing = true;
+    const rect = canvas.getBoundingClientRect();
+    lastX = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
+    lastY = (e.touches ? e.touches[0].clientY : e.clientY) - rect.top;
+    liveRegion.textContent = "Started drawing.";
+  }
+
+  function draw(e) {
+    if (!drawing) return;
+    const rect = canvas.getBoundingClientRect();
+    const x = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
+    const y = (e.touches ? e.touches[0].clientY : e.clientY) - rect.top;
+
+    ctx.strokeStyle = "#00ccff";
+    ctx.lineWidth = 3;
+    ctx.lineCap = "round";
+
+    ctx.beginPath();
+    ctx.moveTo(lastX, lastY);
+    ctx.lineTo(x, y);
+    ctx.stroke();
+
+    lastX = x;
+    lastY = y;
+  }
+
+  function stopDrawing() {
+    if (drawing) {
+      drawing = false;
+      liveRegion.textContent = "Stopped drawing.";
+    }
+  }
+
+  canvas.addEventListener('mousedown', startDrawing);
+  canvas.addEventListener('touchstart', startDrawing);
+  canvas.addEventListener('mousemove', draw);
+  canvas.addEventListener('touchmove', draw);
+  canvas.addEventListener('mouseup', stopDrawing);
+  canvas.addEventListener('mouseleave', stopDrawing);
+  canvas.addEventListener('touchend', stopDrawing);
+  canvas.addEventListener('touchcancel', stopDrawing);
+
+  document.getElementById('clearCanvasBtn').addEventListener('click', () => {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    liveRegion.textContent = "Canvas cleared.";
+  });
+
+  // Keyboard shortcut for clearing canvas
+  window.addEventListener('keydown', (e) => {
+    if (e.altKey || e.ctrlKey || e.metaKey) return;
+    if (e.key.toLowerCase() === 'c') {
+      e.preventDefault();
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      liveRegion.textContent = "Canvas cleared.";
+    }
+  });
+
+  function speakGuidance(message) {
+    if (!message) return;
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(message);
+    utterance.lang = 'en-US';
+    window.speechSynthesis.speak(utterance);
+    updateLiveRegion(message);
+  }
+
+  window.addEventListener('load', () => {
+    document.querySelector('main').focus();
+
+    let message = '';
+    document.querySelectorAll('nav a').forEach(link => {
+        link.addEventListener('click', function (event) {
+            // Prevent actual navigation for demo purposes
+            event.preventDefault();
+
+            // Extract sectionId from the link's id (remove "nav-" prefix)
+            const sectionId = this.id.replace('nav-', '');
+
+            let message = '';
+
+            switch (sectionId) {
+                case 'reader':
+                    message = "You are in Book Reader section. Upload or paste text and press R to read aloud, P to pause or resume, S to stop.";
+                    break;
+                case 'notes':
+                    message = "You are in Voice Notes section. Press R to start recording, S to stop recording. You can also upload audio files.";
+                    break;
+                case 'quiz':
+                    message = "You are in Quiz section. Answer the question by selecting one of the options.";
+                    break;
+                case 'diagram':
+                    message = "You are in Diagram Helper section. Upload an image, then press D to hear its description.";
+                    break;
+                case 'converter':
+                    message = "You are in Braille Export section. Upload a text file as PDF and get a .brf file.";
+                    break;
+                default:
+                    message = "Unknown section.";
+            }
+            console.log(message);
+      });
+    });
+    speakGuidance(message);
+  });
+
+  window.addEventListener('load', () => {
+    document.querySelector('main').focus();
+  });
+</script>
+
+</body>
+</html>
