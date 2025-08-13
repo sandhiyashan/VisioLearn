@@ -5,12 +5,12 @@ window.addEventListener('DOMContentLoaded', () => {
 
   // Initialize Liblouis Easy API (Async)
   const lou = new LiblouisEasyApiAsync({
-    capi: './liblouis-build/build-no-tables-utf32.js',
-    easyapi: './liblouis/easy-api.js',
+    capi: 'https://raw.githubusercontent.com/sandhiyashan/VisioLearn/main/liblouis-build/build-no-tables-utf32.js',
+    easyapi: 'https://raw.githubusercontent.com/sandhiyashan/VisioLearn/main/liblouis/easy-api.js',
   });
 
   // Enable on-demand table loading (async API)
-  lou.enableOnDemandTableLoading('./liblouis-build/tables/', () => {
+  lou.enableOnDemandTableLoading('https://raw.githubusercontent.com/sandhiyashan/VisioLearn/main/liblouis-build/tables/', () => {
     console.log('On-demand table loading enabled');
   });
 
@@ -58,3 +58,4 @@ window.addEventListener('DOMContentLoaded', () => {
 
   convertPdfBtn.addEventListener('click', convertPdfToBrf);
 });
+
