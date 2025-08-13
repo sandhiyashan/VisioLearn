@@ -13,11 +13,11 @@ VisioLearn is dedicated to empowering visually challenged students by providing 
 1. Record voice notes directly in the browser using your microphone.
 2. Keyboard shortcuts:
    
-**R → Start Recording
+R → Start Recording
 
 S → Stop Recording
 
-P → Play the recorded audio**
+P → Play the recorded audio
 
 3. Option to upload existing audio files for playback.
 4. Audio feedback via speech synthesis to guide the user through actions.
